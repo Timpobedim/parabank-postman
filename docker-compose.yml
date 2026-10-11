@@ -1,0 +1,8 @@
+# Тестовый стенд: демо-банк ParaBank в Docker. У публичного parabank.parasoft.com общая база
+# на всех, её периодически сбрасывают — для воспроизводимых прогонов нужен свой экземпляр.
+services:
+  parabank:
+    # Образ закреплён по digest: тег latest у parasoft/parabank обновляется без предупреждения.
+    image: parasoft/parabank@sha256:747453a0c00b52ed36c7c55aa842a6e9e4a761f70ad577ec07b1f6cbee77e0e5
+    ports:
+      - "8090:8080"

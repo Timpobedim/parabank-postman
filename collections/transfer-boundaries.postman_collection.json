@@ -1,0 +1,539 @@
+{
+  "info": {
+    "_postman_id": "5f10b6aa-64b4-5532-bed4-3975564cd2ff",
+    "name": "ParaBank — граничные суммы перевода",
+    "description": "Тест-дизайн суммы перевода: классы эквивалентности и границы. Данные — data/transfer-amounts.csv,\nодна строка — одна итерация, у каждой итерации свой клиент и свои счета: случай с испорченным\nсчётом (PB-014) не задевает соседние.\n\nУ каждого случая три проверки — код ответа, остаток и то, что счёт после операции читается.\nМетка дефекта ставится только на ту проверку, которую дефект ломает (колонки *_defect).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Новый клиент",
+      "item": [
+        {
+          "name": "Форма регистрации",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "2783b42b-4ea0-5752-b022-56843b56cb7d",
+                "type": "text/javascript",
+                "exec": [
+                  "// Уникальный логин: ParaBank не даёт удалить клиента, повтор логина — ошибка регистрации.",
+                  "pm.collectionVariables.set('username', 'qa' + Date.now().toString(36) + Math.floor(Math.random() * 1e4));",
+                  "pm.collectionVariables.set('password', 'Pw' + Math.floor(Math.random() * 1e8));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "b9f17f76-3d4b-5628-b3d0-8d4da70986b9",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('форма открывается', () => pm.response.to.have.status(200));",
+                  "pm.test('сессия выдана', () => pm.expect(pm.cookies.has('JSESSIONID')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/register.htm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register.htm"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Регистрация",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "213c181b-1a04-55dd-96f8-2a5a7bf18b5b",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('клиент зарегистрирован', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.text()).to.include('Welcome ' + pm.collectionVariables.get('username'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/register.htm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register.htm"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "customer.firstName",
+                  "value": "Anna",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.lastName",
+                  "value": "Petrova",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.street",
+                  "value": "Tverskaya 1",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.city",
+                  "value": "Moscow",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.state",
+                  "value": "MSK",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.zipCode",
+                  "value": "125009",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.phoneNumber",
+                  "value": "79161234567",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.ssn",
+                  "value": "123-45-6789",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.username",
+                  "value": "{{username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "repeatedPassword",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Вход по REST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "c903eedd-2431-502e-94bd-c3277b9dfcd7",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('вход выполнен', () => pm.response.to.have.status(200));",
+                  "pm.test('клиент по схеме', () => pm.response.to.have.jsonSchema(pb.schemas.customer));",
+                  "pm.test('это тот, кого регистрировали', () => {",
+                  "  const c = pm.response.json();",
+                  "  pm.expect([c.firstName, c.lastName, c.address.city]).to.eql(['Anna', 'Petrova', 'Moscow']);",
+                  "});",
+                  "pm.collectionVariables.set('customerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/login/{{username}}/{{password}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "login",
+                "{{username}}",
+                "{{password}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Первый счёт",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "f267ed6f-b413-5c06-ac4f-ac19a8517aa1",
+                "type": "text/javascript",
+                "exec": [
+                  "const accounts = pm.response.json();",
+                  "pm.test('при регистрации открыт один расчётный счёт на $515.50', () => {",
+                  "  pm.expect(accounts).to.have.length(1);",
+                  "  pm.expect(accounts[0].type).to.eql('CHECKING');",
+                  "  pm.expect(pb.cents(accounts[0].balance)).to.eql(51550);",
+                  "});",
+                  "pm.collectionVariables.set('accountA', accounts[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/customers/{{customerId}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "customers",
+                "{{customerId}}",
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Регистрация через HTTP-форму: REST API ParaBank клиентов не создаёт."
+    },
+    {
+      "name": "Второй счёт",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "ec43bc36-464a-55b2-b460-606c4c5a3c87",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('счёт открыт и принадлежит клиенту', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().customerId).to.eql(Number(pm.collectionVariables.get('customerId')));",
+              "});",
+              "pm.collectionVariables.set('accountB', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/services/bank/createAccount?customerId={{customerId}}&newAccountType=1&fromAccountId={{accountA}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services",
+            "bank",
+            "createAccount"
+          ],
+          "query": [
+            {
+              "key": "customerId",
+              "value": "{{customerId}}"
+            },
+            {
+              "key": "newAccountType",
+              "value": "1"
+            },
+            {
+              "key": "fromAccountId",
+              "value": "{{accountA}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Остаток до перевода",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "c8a37913-fa3e-5b6a-bde3-715d43177697",
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('before', pb.cents(pm.response.json().balance));",
+              "// BALANCE в данных — «весь остаток»: граница считается от фактического значения.",
+              "// Имя переменной не совпадает с колонкой amount: переменная данных итерации",
+              "// сильнее переменной коллекции и подставилась бы в URL как есть.",
+              "const raw = pm.iterationData.get('amount');",
+              "const balance = pm.response.json().balance;",
+              "const sum = raw === 'BALANCE' ? balance.toFixed(2) : raw === 'BALANCE+0.01' ? (balance + 0.01).toFixed(2) : raw;",
+              "pm.collectionVariables.set('transferAmount', sum);",
+              "pm.test('остаток прочитан', () => pm.response.to.have.jsonSchema(pb.schemas.account));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/services/bank/accounts/{{accountA}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services",
+            "bank",
+            "accounts",
+            "{{accountA}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Перевод",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "66212751-c4b6-55e0-95ce-408977d3964b",
+            "type": "text/javascript",
+            "exec": [
+              "const tag = (column) => pm.iterationData.get(column) ? ` [${pm.iterationData.get(column)}]` : '';",
+              "const name = `${pm.iterationData.get('case')} (${pm.collectionVariables.get('transferAmount')})`;",
+              "if (pm.iterationData.get('expect') === 'accept') {",
+              "  pm.test(`${name}: принят${tag('status_defect')}`, () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.text()).to.include(`Successfully transferred $${pm.collectionVariables.get('transferAmount')}`);",
+              "  });",
+              "} else {",
+              "  pm.test(`${name}: отклонён с 400${tag('status_defect')}`, () => pm.response.to.have.status(400));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount={{transferAmount}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services",
+            "bank",
+            "transfer"
+          ],
+          "query": [
+            {
+              "key": "fromAccountId",
+              "value": "{{accountA}}"
+            },
+            {
+              "key": "toAccountId",
+              "value": "{{accountB}}"
+            },
+            {
+              "key": "amount",
+              "value": "{{transferAmount}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Остаток после перевода",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "16d9717d-6eea-5c60-bbac-a2004e00b792",
+            "type": "text/javascript",
+            "exec": [
+              "const tag = (column) => pm.iterationData.get(column) ? ` [${pm.iterationData.get(column)}]` : '';",
+              "const name = `${pm.iterationData.get('case')} (${pm.collectionVariables.get('transferAmount')})`;",
+              "const before = Number(pm.collectionVariables.get('before'));",
+              "pm.test(`${name}: счёт читается${tag('read_defect')}`, () => pm.response.to.have.status(200));",
+              "if (pm.response.code !== 200) return;",
+              "const after = pb.cents(pm.response.json().balance);",
+              "if (pm.iterationData.get('expect') === 'accept') {",
+              "  pm.test(`${name}: списано ровно${tag('balance_defect')}`,",
+              "    () => pm.expect(after).to.eql(before - pb.cents(pm.collectionVariables.get('transferAmount'))));",
+              "} else {",
+              "  pm.test(`${name}: остаток не изменился${tag('balance_defect')}`, () => pm.expect(after).to.eql(before));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/services/bank/accounts/{{accountA}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services",
+            "bank",
+            "accounts",
+            "{{accountA}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "id": "a7c816d0-47f5-5896-81de-e50a9749d162",
+        "type": "text/javascript",
+        "exec": [
+          "// Общие помощники. Скрипт коллекции выполняется перед скриптом запроса в той же песочнице,",
+          "// поэтому объект pb, объявленный без let/const, виден в проверках каждого запроса.",
+          "pb = {",
+          "  // Деньги сравниваются в центах: 0.1 + 0.2 в JavaScript не равно 0.3.",
+          "  cents: (value) => Math.round(Number(value) * 100),",
+          "  xml: () => require('cheerio').load(pm.response.text(), { xmlMode: true }),",
+          "  // Значение элемента по локальному имени: префиксы пространств имён у ParaBank — ns2, ns1, soap.",
+          "  xmlValues: (tag) => {",
+          "    const $ = pb.xml();",
+          "    return $('*').filter((i, el) => el.name.split(':').pop() === tag).map((i, el) => $(el).text()).get();",
+          "  },",
+          "  xmlValue: (tag) => {",
+          "    const values = pb.xmlValues(tag);",
+          "    return values.length ? values[0] : null;",
+          "  },",
+          "  fault: () => ({ code: pb.xmlValue('faultcode'), message: pb.xmlValue('faultstring') }),",
+          "  schemas: {",
+          "    customer: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['id', 'firstName', 'lastName', 'address', 'phoneNumber', 'ssn'],",
+          "      properties: {",
+          "        id: { type: 'integer' }, firstName: { type: 'string' }, lastName: { type: 'string' },",
+          "        phoneNumber: { type: 'string' }, ssn: { type: 'string' },",
+          "        address: {",
+          "          type: 'object', additionalProperties: false, required: ['street', 'city', 'state', 'zipCode'],",
+          "          properties: { street: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' },",
+          "                        zipCode: { type: 'string' } },",
+          "        },",
+          "      },",
+          "    },",
+          "    account: {",
+          "      type: 'object', additionalProperties: false, required: ['id', 'customerId', 'type', 'balance'],",
+          "      properties: { id: { type: 'integer' }, customerId: { type: 'integer' },",
+          "                    type: { enum: ['CHECKING', 'SAVINGS', 'LOAN'] }, balance: { type: 'number' } },",
+          "    },",
+          "    transaction: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['id', 'accountId', 'type', 'date', 'amount', 'description'],",
+          "      properties: { id: { type: 'integer' }, accountId: { type: 'integer' }, type: { enum: ['Credit', 'Debit'] },",
+          "                    date: { type: 'integer' }, amount: { type: 'number' }, description: { type: 'string' } },",
+          "    },",
+          "    loan: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['responseDate', 'loanProviderName', 'approved', 'accountId'],",
+          "      properties: { responseDate: { type: 'integer' }, loanProviderName: { type: 'string' },",
+          "                    approved: { type: 'boolean' }, message: { type: 'string' },",
+          "                    accountId: { type: ['integer', 'null'] } },",
+          "    },",
+          "  },",
+          "};",
+          "",
+          "pm.test('ответ быстрее 3 с', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+          "// Тело в JSON должно быть и объявлено как JSON: клиенты на другом языке разбирают по заголовку.",
+          "// Обратное (текст под видом JSON) — дефект PB-005, он закреплён в коллекции известных дефектов.",
+          "if (/^\\s*[\\[{]/.test(pm.response.text())) {",
+          "  pm.test('JSON объявлен как application/json', () => {",
+          "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "accountA",
+      "value": ""
+    },
+    {
+      "key": "accountB",
+      "value": ""
+    },
+    {
+      "key": "before",
+      "value": ""
+    },
+    {
+      "key": "transferAmount",
+      "value": ""
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "runs": [
+    { "name": "rest", "collection": "collections/parabank-rest.postman_collection.json", "environment": "environments/local.postman_environment.json" }
+  ]
+}

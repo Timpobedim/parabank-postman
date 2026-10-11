@@ -1,0 +1,68 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # Свой экземпляр банка на каждый прогон: у публичного стенда общая база на всех.
+      parabank:
+        image: parasoft/parabank@sha256:747453a0c00b52ed36c7c55aa842a6e9e4a761f70ad577ec07b1f6cbee77e0e5
+        ports:
+          - 8090:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Зависимости
+        run: |
+          npm ci
+          uv sync --group dev
+
+      - name: Линтер, типы, линтер коллекций
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+          uv run pbqa lint
+
+      - name: Тесты раннера, мутаций и дополнений mitmproxy
+        run: uv run pytest -q
+
+      - name: Дождаться ParaBank и создать базу
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8090/parabank/services/ParaBank?wsdl > /dev/null && break
+            sleep 2
+          done
+          # В свежем контейнере схемы базы нет: регистрация отвечает 500 «bad SQL grammar»,
+          # пока база не создана. Создаём её так же, как кнопка Initialize в админке ParaBank.
+          curl -sf -X POST http://localhost:8090/parabank/services/bank/initializeDB
+
+      # Код возврата раннера: 1 — неожиданное падение или исправленный известный дефект.
+      - name: Коллекции
+        run: node runner/run.js --feed feeds/full.json
+
+      - name: Мутационный прогон
+        run: uv run pbqa mutate
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports
+          path: reports/

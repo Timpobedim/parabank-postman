@@ -1,0 +1,1384 @@
+{
+  "info": {
+    "_postman_id": "6ea89d29-4d1a-509d-b17a-ef9a457573e3",
+    "name": "ParaBank — известные дефекты",
+    "description": "Каждая проверка с меткой [PB-xxx] описывает ОЖИДАЕМОЕ поведение и падает, пока дефект есть.\nРаннер (runner/run.js) считает такие падения ожидаемыми, а прохождение помеченной проверки —\nошибкой: дефект исправлен, метку пора снять. Баг-репорты — docs/bug-reports.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Новый клиент",
+      "item": [
+        {
+          "name": "Форма регистрации",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "2783b42b-4ea0-5752-b022-56843b56cb7d",
+                "type": "text/javascript",
+                "exec": [
+                  "// Уникальный логин: ParaBank не даёт удалить клиента, повтор логина — ошибка регистрации.",
+                  "pm.collectionVariables.set('username', 'qa' + Date.now().toString(36) + Math.floor(Math.random() * 1e4));",
+                  "pm.collectionVariables.set('password', 'Pw' + Math.floor(Math.random() * 1e8));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "b9f17f76-3d4b-5628-b3d0-8d4da70986b9",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('форма открывается', () => pm.response.to.have.status(200));",
+                  "pm.test('сессия выдана', () => pm.expect(pm.cookies.has('JSESSIONID')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/register.htm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register.htm"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Регистрация",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "213c181b-1a04-55dd-96f8-2a5a7bf18b5b",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('клиент зарегистрирован', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.text()).to.include('Welcome ' + pm.collectionVariables.get('username'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/register.htm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register.htm"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "customer.firstName",
+                  "value": "Anna",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.lastName",
+                  "value": "Petrova",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.street",
+                  "value": "Tverskaya 1",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.city",
+                  "value": "Moscow",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.state",
+                  "value": "MSK",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.address.zipCode",
+                  "value": "125009",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.phoneNumber",
+                  "value": "79161234567",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.ssn",
+                  "value": "123-45-6789",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.username",
+                  "value": "{{username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "customer.password",
+                  "value": "{{password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "repeatedPassword",
+                  "value": "{{password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Вход по REST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "c903eedd-2431-502e-94bd-c3277b9dfcd7",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('вход выполнен', () => pm.response.to.have.status(200));",
+                  "pm.test('клиент по схеме', () => pm.response.to.have.jsonSchema(pb.schemas.customer));",
+                  "pm.test('это тот, кого регистрировали', () => {",
+                  "  const c = pm.response.json();",
+                  "  pm.expect([c.firstName, c.lastName, c.address.city]).to.eql(['Anna', 'Petrova', 'Moscow']);",
+                  "});",
+                  "pm.collectionVariables.set('customerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/login/{{username}}/{{password}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "login",
+                "{{username}}",
+                "{{password}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Первый счёт",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "f267ed6f-b413-5c06-ac4f-ac19a8517aa1",
+                "type": "text/javascript",
+                "exec": [
+                  "const accounts = pm.response.json();",
+                  "pm.test('при регистрации открыт один расчётный счёт на $515.50', () => {",
+                  "  pm.expect(accounts).to.have.length(1);",
+                  "  pm.expect(accounts[0].type).to.eql('CHECKING');",
+                  "  pm.expect(pb.cents(accounts[0].balance)).to.eql(51550);",
+                  "});",
+                  "pm.collectionVariables.set('accountA', accounts[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/customers/{{customerId}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "customers",
+                "{{customerId}}",
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Регистрация через HTTP-форму: REST API ParaBank клиентов не создаёт."
+    },
+    {
+      "name": "Второй счёт",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "id": "ec43bc36-464a-55b2-b460-606c4c5a3c87",
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('счёт открыт и принадлежит клиенту', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().customerId).to.eql(Number(pm.collectionVariables.get('customerId')));",
+              "});",
+              "pm.collectionVariables.set('accountB', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/services/bank/createAccount?customerId={{customerId}}&newAccountType=1&fromAccountId={{accountA}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services",
+            "bank",
+            "createAccount"
+          ],
+          "query": [
+            {
+              "key": "customerId",
+              "value": "{{customerId}}"
+            },
+            {
+              "key": "newAccountType",
+              "value": "1"
+            },
+            {
+              "key": "fromAccountId",
+              "value": "{{accountA}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Переводы",
+      "item": [
+        {
+          "name": "PB-001 перевод больше остатка",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "0e8ff460-8434-5a32-83ad-764c40fd7132",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('перевод больше остатка отклонён [PB-001]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountB}}&toAccountId={{accountA}}&amount=100000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "100000"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-002 отрицательный перевод",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "dd04221a-89a5-56c1-a9ee-5a81510034bf",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('отрицательная сумма отклонена [PB-002]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=-10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "-10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-003 перевод на тот же счёт",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "10f59ce5-fd33-5203-af6b-8d8091ecc26f",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('перевод самому себе отклонён [PB-003]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountA}}&amount=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-005 тип ответа перевода",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "92d4163d-94b8-5432-9e0c-296f8a833a7a",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('перевод принят', () => pm.response.to.have.status(200));",
+                  "pm.test('текстовый ответ объявлен как текст [PB-005]', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.not.include('application/json');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-009 пустая сумма",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "49443764-527f-5dec-9cb8-69953d9b75db",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('пустая сумма — 400, а не внутренняя ошибка [PB-009]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-019 сумма не число",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "54fddd41-550b-53c7-b331-5e6e7a3c76d5",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('нечисловая сумма — 400, а не 404 [PB-019]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "abc"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-020 перевод на ноль",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "cafee79c-7caf-5efd-ac4c-eaa7d28e5213",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('нулевая сумма отклонена [PB-020]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Пополнение и снятие",
+      "item": [
+        {
+          "name": "PB-018 отрицательное пополнение",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "1f075151-a20b-54ca-b863-f09d0077a2c1",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('отрицательное пополнение отклонено [PB-018]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/deposit?accountId={{accountA}}&amount=-5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "deposit"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "-5"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-018 отрицательное снятие",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "e6d16fc0-9070-5cdd-ac01-be67a039fee4",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('отрицательное снятие отклонено [PB-018]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/withdraw?accountId={{accountA}}&amount=-5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "withdraw"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "-5"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Счета и кредит",
+      "item": [
+        {
+          "name": "PB-004 несуществующий счёт",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "4555c482-7c35-5bc9-bd5c-f849372eb737",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('несуществующий счёт — 404 [PB-004]', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/accounts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "accounts",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-016 неизвестный тип счёта — REST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "eaa6f5a9-d6f8-5748-987b-4d40c56c86ad",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('неизвестный тип счёта — 400 [PB-016]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/createAccount?customerId={{customerId}}&newAccountType=7&fromAccountId={{accountA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "createAccount"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}"
+                },
+                {
+                  "key": "newAccountType",
+                  "value": "7"
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-016 неизвестный тип счёта — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "d886b068-97c8-51b0-8684-0daba7ac4278",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ошибка клиента без текста внутреннего исключения [PB-016]', () => {",
+                  "  pm.expect(pb.fault().code).to.eql('soap:Client');",
+                  "  pm.expect(pb.fault().message).to.not.match(/out of bounds|Exception/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:createAccount><par:customerId>{{customerId}}</par:customerId><par:newAccountType>7</par:newAccountType><par:fromAccountId>{{accountA}}</par:fromAccountId></par:createAccount>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-008 отказ в кредите",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "2df8c6bf-dcf2-5139-9bbb-8418740b578d",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('кредит отклонён', () => pm.expect(pm.response.json().approved).to.be.false);",
+                  "pm.test('причина отказа — текст, а не ключ локализации [PB-008]', () => {",
+                  "  pm.expect(pm.response.json().message).to.not.match(/^error\\./);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/requestLoan?customerId={{customerId}}&amount=1000000&downPayment=10&fromAccountId={{accountA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "requestLoan"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "1000000"
+                },
+                {
+                  "key": "downPayment",
+                  "value": "10"
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "SOAP Fault",
+      "item": [
+        {
+          "name": "PB-001 перевод больше остатка — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "7d661fa9-713d-5019-aaa9-465eadd7a697",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('перевод больше остатка отклонён и через SOAP [PB-001]', () => pm.expect(pb.fault().code).to.eql('soap:Client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:transfer><par:fromAccountId>{{accountB}}</par:fromAccountId><par:toAccountId>{{accountA}}</par:toAccountId><par:amount>100000</par:amount></par:transfer>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-002 отрицательный перевод — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "ea78a8c4-d4fd-51bc-aeb9-9a660a16d317",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('отрицательная сумма отклонена и через SOAP [PB-002]', () => pm.expect(pb.fault().code).to.eql('soap:Client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:transfer><par:fromAccountId>{{accountA}}</par:fromAccountId><par:toAccountId>{{accountB}}</par:toAccountId><par:amount>-10</par:amount></par:transfer>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-003 перевод на тот же счёт — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "6606c15c-fa28-5cf7-977c-fd0d5d3b21cf",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('перевод самому себе отклонён и через SOAP [PB-003]', () => pm.expect(pb.fault().code).to.eql('soap:Client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:transfer><par:fromAccountId>{{accountA}}</par:fromAccountId><par:toAccountId>{{accountA}}</par:toAccountId><par:amount>1</par:amount></par:transfer>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-017 неверный пароль — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b0727801-b180-5c35-8dae-7edd3f13fd67",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('вход отклонён', () => pm.expect(pb.fault().message).to.eql('Invalid username and/or password'));",
+                  "pm.test('ошибка входа — soap:Client, а не soap:Server [PB-017]', () => pm.expect(pb.fault().code).to.eql('soap:Client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:login><par:username>{{username}}</par:username><par:password>wrong-password</par:password></par:login>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-015 перевод без суммы — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "7a0f86f4-db70-5d05-ab85-5ec9a470d21c",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('пропущенное поле — soap:Client без внутренностей [PB-015]', () => {",
+                  "  pm.expect(pb.fault().code).to.eql('soap:Client');",
+                  "  pm.expect(pb.fault().message).to.not.include('intCompact');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:transfer><par:fromAccountId>{{accountA}}</par:fromAccountId><par:toAccountId>{{accountB}}</par:toAccountId></par:transfer>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Последним: портит счета",
+      "item": [
+        {
+          "name": "PB-014 сумма с тремя знаками после запятой",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "903792bc-f2e5-52a7-ac04-cc2c3d95d95f",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('сумма точнее цента отклонена [PB-014]', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/transfer?fromAccountId={{accountA}}&toAccountId={{accountB}}&amount=0.001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{accountA}}"
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{accountB}}"
+                },
+                {
+                  "key": "amount",
+                  "value": "0.001"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-014 счёт после перевода — REST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "53edc105-a0f0-5ab6-b0ed-e7a6f54814b1",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('счёт по-прежнему читается [PB-014]', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/bank/accounts/{{accountA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "bank",
+                "accounts",
+                "{{accountA}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PB-014 счёт после перевода — SOAP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "407fbf9e-e152-5a2b-bb6b-a3252d717690",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('счёт получателя читается через SOAP [PB-014]', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              },
+              {
+                "key": "SOAPAction",
+                "value": "\"\""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "ParaBank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:par=\"http://service.parabank.parasoft.com/\">\n  <soapenv:Body>\n    <par:getAccount><par:accountId>{{accountB}}</par:accountId></par:getAccount>\n  </soapenv:Body>\n</soapenv:Envelope>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Перевод на 0.001 делает оба счёта нечитаемыми до сброса базы — поэтому в конце."
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "id": "aabf6ba0-b2cf-5d8a-978a-c2de9b06adfa",
+        "type": "text/javascript",
+        "exec": [
+          "// Общие помощники. Скрипт коллекции выполняется перед скриптом запроса в той же песочнице,",
+          "// поэтому объект pb, объявленный без let/const, виден в проверках каждого запроса.",
+          "pb = {",
+          "  // Деньги сравниваются в центах: 0.1 + 0.2 в JavaScript не равно 0.3.",
+          "  cents: (value) => Math.round(Number(value) * 100),",
+          "  xml: () => require('cheerio').load(pm.response.text(), { xmlMode: true }),",
+          "  // Значение элемента по локальному имени: префиксы пространств имён у ParaBank — ns2, ns1, soap.",
+          "  xmlValues: (tag) => {",
+          "    const $ = pb.xml();",
+          "    return $('*').filter((i, el) => el.name.split(':').pop() === tag).map((i, el) => $(el).text()).get();",
+          "  },",
+          "  xmlValue: (tag) => {",
+          "    const values = pb.xmlValues(tag);",
+          "    return values.length ? values[0] : null;",
+          "  },",
+          "  fault: () => ({ code: pb.xmlValue('faultcode'), message: pb.xmlValue('faultstring') }),",
+          "  schemas: {",
+          "    customer: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['id', 'firstName', 'lastName', 'address', 'phoneNumber', 'ssn'],",
+          "      properties: {",
+          "        id: { type: 'integer' }, firstName: { type: 'string' }, lastName: { type: 'string' },",
+          "        phoneNumber: { type: 'string' }, ssn: { type: 'string' },",
+          "        address: {",
+          "          type: 'object', additionalProperties: false, required: ['street', 'city', 'state', 'zipCode'],",
+          "          properties: { street: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' },",
+          "                        zipCode: { type: 'string' } },",
+          "        },",
+          "      },",
+          "    },",
+          "    account: {",
+          "      type: 'object', additionalProperties: false, required: ['id', 'customerId', 'type', 'balance'],",
+          "      properties: { id: { type: 'integer' }, customerId: { type: 'integer' },",
+          "                    type: { enum: ['CHECKING', 'SAVINGS', 'LOAN'] }, balance: { type: 'number' } },",
+          "    },",
+          "    transaction: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['id', 'accountId', 'type', 'date', 'amount', 'description'],",
+          "      properties: { id: { type: 'integer' }, accountId: { type: 'integer' }, type: { enum: ['Credit', 'Debit'] },",
+          "                    date: { type: 'integer' }, amount: { type: 'number' }, description: { type: 'string' } },",
+          "    },",
+          "    loan: {",
+          "      type: 'object', additionalProperties: false,",
+          "      required: ['responseDate', 'loanProviderName', 'approved', 'accountId'],",
+          "      properties: { responseDate: { type: 'integer' }, loanProviderName: { type: 'string' },",
+          "                    approved: { type: 'boolean' }, message: { type: 'string' },",
+          "                    accountId: { type: ['integer', 'null'] } },",
+          "    },",
+          "  },",
+          "};",
+          "",
+          "pm.test('ответ быстрее 3 с', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+          "// Тело в JSON должно быть и объявлено как JSON: клиенты на другом языке разбирают по заголовку.",
+          "// Обратное (текст под видом JSON) — дефект PB-005, он закреплён в коллекции известных дефектов.",
+          "if (/^\\s*[\\[{]/.test(pm.response.text())) {",
+          "  pm.test('JSON объявлен как application/json', () => {",
+          "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "accountA",
+      "value": ""
+    },
+    {
+      "key": "accountB",
+      "value": ""
+    }
+  ]
+}

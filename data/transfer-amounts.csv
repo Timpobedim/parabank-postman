@@ -1,0 +1,13 @@
+case,amount,expect,status_defect,balance_defect,read_defect
+минимальная сумма,0.01,accept,,,
+обычная сумма,100,accept,,,
+два знака после запятой,10.25,accept,,,
+весь остаток,BALANCE,accept,,,
+остаток плюс цент,BALANCE+0.01,reject,PB-001,PB-001,
+сумма больше остатка,1000000,reject,PB-001,PB-001,
+ноль,0,reject,PB-020,,
+минус цент,-0.01,reject,PB-002,PB-002,
+три знака после запятой,0.001,reject,PB-014,,PB-014
+запятая вместо точки,"1,5",reject,PB-019,,
+не число,abc,reject,PB-019,,
+пустая сумма,,reject,PB-009,,

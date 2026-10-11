@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+reports/
+*.tmp
+.env
+
+# SG-11: служебное и персональное — не публикуется
+.omc/
+.claude/

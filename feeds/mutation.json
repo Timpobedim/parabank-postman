@@ -1,0 +1,7 @@
+{
+  "runs": [
+    { "name": "rest", "collection": "collections/parabank-rest.postman_collection.json", "environment": "environments/local.postman_environment.json" },
+    { "name": "soap", "collection": "collections/parabank-soap.postman_collection.json", "environment": "environments/local.postman_environment.json" },
+    { "name": "rest-vs-soap", "collection": "collections/rest-vs-soap.postman_collection.json", "environment": "environments/local.postman_environment.json" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "parabank-postman",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Прогон коллекций Postman по ParaBank: REST и SOAP, известные дефекты, честный код возврата",
+  "scripts": {
+    "test": "node runner/run.js --feed feeds/full.json",
+    "smoke": "node runner/run.js --feed feeds/smoke.json"
+  },
+  "dependencies": {
+    "newman": "6.2.2",
+    "newman-reporter-htmlextra": "1.23.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
